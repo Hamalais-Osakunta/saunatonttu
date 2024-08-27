@@ -2,6 +2,9 @@
 
 const uint8_t ledPin = LED_BUILTIN;
 
+/**
+ * Setup led
+ */
 void setupLed()
 {
     pinMode(ledPin, OUTPUT); // Initialize digital ledPin as an output.

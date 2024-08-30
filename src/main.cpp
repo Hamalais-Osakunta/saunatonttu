@@ -1,83 +1,129 @@
-#include <ESP8266WiFi.h>
-#include <WiFiClientSecure.h>
-#include <UniversalTelegramBot.h>
+#include <Arduino.h>
+#include <BLEDevice.h>
+#include <BLEUtils.h>
+#include <BLEScan.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
 
-#include <functions.h>
+#define WIFI_SSID "HO-langaton"
+#define WIFI_PASSWORD "HO-wireless"
+#define SCAN_TIME 5      // seconds
+#define CYCLE_TIME 10000 // milliseconds
 
-// Handlers
-#include <./handle/message.h>
-#include <./handle/event.h>
+// ef:75:68:aa:a5:3f
+BLEAddress targetAddress = BLEAddress((esp_bd_addr_t){0xEF, 0x75, 0x68, 0xAA, 0xA5, 0x3F});
+BLEScan *pBLEScan;
+std::string receivedAdvertisement;
 
-#include <../.env.h>
-
-// Mean time between scan messages
-const unsigned long BOT_MTBS = 1000;
-
-// Mean time between scan events
-const unsigned long EVENT_MTBS = 400;
-
-X509List cert(TELEGRAM_CERTIFICATE_ROOT);
-WiFiClientSecure secured_client;
-UniversalTelegramBot bot(BOT_TOKEN, secured_client);
-
-// Last time messages scan has been done
-unsigned long bot_lasttime;
-
-// Last time events scan has been done
-unsigned long event_lasttime;
+class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
+{
+    void onResult(BLEAdvertisedDevice advertisedDevice)
+    {
+        if (advertisedDevice.getAddress() == targetAddress)
+        {
+            receivedAdvertisement = advertisedDevice.getManufacturerData();
+            pBLEScan->stop();
+        }
+    }
+};
 
 void setup()
 {
-  Serial.begin(9600);
-  Serial.println();
-
-  setupLed();
-
-  // Attempt to connect to Wifi network:
-  configTime(0, 0, "pool.ntp.org", "fi.pool.ntp.org", "time.mikes.fi"); // Get UTC time via NTP
-  secured_client.setTrustAnchors(&cert);                                // Add root certificate for api.telegram.org
-  Serial.print("Connecting to Wifi SSID ");
-  Serial.print(WIFI_SSID);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-  while (WiFi.status() != WL_CONNECTED)
-  {
-    blink(50);
-    Serial.print(".");
-    delay(50);
-  }
-  Serial.println("\nWiFi connected. IP address: ");
-  Serial.println(WiFi.localIP());
-
-  bot.sendMessage(MAINTENANCE_CHAT, "Saunatonttu on käynnistynyt.", "Markdown");
+    Serial.begin(9600);
 }
 
 void loop()
 {
+    HTTPClient http;
+    int httpResponseCode;
 
-  // Handle events
-  bool kiuas = false;
-  int temperature = 0;
+    unsigned long startTime = millis();
 
-  if (millis() - event_lasttime > EVENT_MTBS)
-  {
-    handleEvent(kiuas, temperature, bot);
-    event_lasttime = millis();
-  }
+    BLEDevice::init("");
+    pBLEScan = BLEDevice::getScan();
+    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    pBLEScan->setActiveScan(true);
+    pBLEScan->setInterval(100);
+    pBLEScan->setWindow(99);
 
-  // Handle incoming messages
-  if (millis() - bot_lasttime > BOT_MTBS)
-  {
-    int numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+    // 1. Start Bluetooth and scan for advertisement
+    Serial.println("Starting BLE scan...");
+    BLEDevice::getScan()->start(SCAN_TIME, false);
+    delay(SCAN_TIME * 1000);
+    BLEDevice::getScan()->stop(); //  not needed
+    esp_bt_controller_disable();  // Disable the Bluetooth controller (optional, if necessary)
 
-    while (numNewMessages)
+    if (receivedAdvertisement.empty())
     {
-      for (int i = 0; i < numNewMessages; i++)
-      {
-        handleMessage(bot, bot.messages[i]);
-      }
-      numNewMessages = bot.getUpdates(bot.last_message_received + 1);
+        Serial.println("Target device not found");
+    }
+    else
+    {
+        Serial.println("Advertisement received");
+
+        // 2. Stop Bluetooth, start WiFi
+        BLEDevice::deinit(false);
+        WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+
+        // 3. Connect to WiFi
+        Serial.println("Connecting to WiFi...");
+
+        // Try connecting to WiFi for 5 seconds
+        unsigned long startTime = millis();
+        while (WiFi.status() != WL_CONNECTED)
+        {
+            delay(500);
+            Serial.print(".");
+            if (millis() - startTime > 5000)
+            {
+                break;
+            }
+        }
+        if (WiFi.status() == WL_CONNECTED)
+        {
+            Serial.println("\nWiFi connected");
+
+            // 4. Send data to server
+
+            http.begin("http://192.168.10.124:1337/api/receive-bt");
+            http.addHeader("Content-Type", "application/octet-stream");
+            httpResponseCode = http.POST((uint8_t *)receivedAdvertisement.c_str(), receivedAdvertisement.length());
+
+            if (httpResponseCode > 0)
+            {
+                Serial.printf("HTTP Response code: %d\n", httpResponseCode);
+            }
+            else
+            {
+                Serial.printf("HTTP Request failed: %s\n", http.errorToString(httpResponseCode).c_str());
+            }
+
+            http.end();
+
+            // 5. Stop WiFi
+            WiFi.disconnect(true);
+            WiFi.mode(WIFI_OFF);
+        }
+        else
+        {
+            Serial.println("WiFi connection failed");
+        }
     }
 
-    bot_lasttime = millis();
-  }
+    // Calculate sleep time
+    unsigned long elapsedTime = millis() - startTime;
+    long sleepTime = CYCLE_TIME - elapsedTime;
+
+    if (sleepTime > 0)
+    {
+        Serial.printf("Sleeping for %ld ms\n", sleepTime);
+        delay(sleepTime);
+    }
+    else
+    {
+        Serial.println("Cycle took longer than 10 seconds");
+    }
+
+    // Clear the received advertisement for the next cycle
+    receivedAdvertisement.clear();
 }

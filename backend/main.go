@@ -23,6 +23,21 @@ type Kiuas struct {
 	Battery     uint16
 }
 
+func (k *Kiuas) isOn() bool {
+	warmingThreshold, err := strconv.ParseFloat(os.Getenv("SAUNA_WARMING_THRESHOLD"), 64)
+	if err != nil {
+		log.Fatalf("Error parsing SAUNA_WARMING_THRESHOLD: %v", err)
+	}
+	return k.Temperature > warmingThreshold
+}
+
+func getSaunaStatus(isOn bool) string {
+	if isOn {
+		return "päällä"
+	}
+	return "pois päältä"
+}
+
 var kiuas Kiuas
 
 func main() {
@@ -77,10 +92,10 @@ func initializeTelegramBot(token string) (*bot.Bot, error) {
 	}
 
 	// Register /temperature command handler
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/temperature", bot.MatchTypeExact, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/kiuas", bot.MatchTypeExact, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   fmt.Sprintf("Temperature: %.1f °C, Humidity: %.1f%%", kiuas.Temperature, kiuas.Humidity),
+			Text:   fmt.Sprintf("Sauna on %s\nLämpötila: %.1f °C\nKosteus: %.1f%%", getSaunaStatus(kiuas.isOn()), kiuas.Temperature, kiuas.Humidity),
 		})
 		if err != nil {
 			fmt.Printf("Failed to send message: %v\n", err)
@@ -126,7 +141,7 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 		kiuas.Temperature = ruuviTag.Temperature
 		kiuas.Humidity = ruuviTag.Humidity
 		kiuas.Battery = ruuviTag.Battery
-		fmt.Printf("Received new temperature value: %.1f °C, Humidity: %.1f%%, Voltage: %.2f V\n", kiuas.Temperature, kiuas.Humidity, kiuas.Battery)
+		fmt.Printf("Received new temperature value: %.1f °C, Humidity: %.1f%%, Voltage: %d V\n", kiuas.Temperature, kiuas.Humidity, kiuas.Battery)
 
 		checkAndNotify(b, ctx)
 	})

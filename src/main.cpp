@@ -4,14 +4,12 @@
 #include <BLEScan.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include ".env.h"
 
-#define WIFI_SSID "HO-langaton"
-#define WIFI_PASSWORD "HO-wireless"
 #define SCAN_TIME 5      // seconds
 #define CYCLE_TIME 10000 // milliseconds
 
-// ef:75:68:aa:a5:3f
-BLEAddress targetAddress = BLEAddress((esp_bd_addr_t){0xEF, 0x75, 0x68, 0xAA, 0xA5, 0x3F});
+BLEAddress targetAddress = BLEAddress(RUUVI_TAG_MAC);
 BLEScan *pBLEScan;
 std::string receivedAdvertisement;
 
@@ -85,7 +83,7 @@ void loop()
 
             // 4. Send data to server
 
-            http.begin("http://192.168.10.124:1337/api/receive-bt");
+            http.begin(API_URL);
             http.addHeader("Content-Type", "application/octet-stream");
             httpResponseCode = http.POST((uint8_t *)receivedAdvertisement.c_str(), receivedAdvertisement.length());
 

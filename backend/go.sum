@@ -1,4 +1,6 @@
 github.com/go-telegram/bot v1.7.2 h1:Ml50/XleEvk2h568brw66+gH6cDVh1hIIiDFUUwCvxo=
 github.com/go-telegram/bot v1.7.2/go.mod h1:i2TRs7fXWIeaceF3z7KzsMt/he0TwkVC680mvdTFYeM=
+github.com/joho/godotenv v1.5.1 h1:7eLL/+HRGLY0ldzfGMeQkb7vMd0as4CfYvUVzLqw0N0=
+github.com/joho/godotenv v1.5.1/go.mod h1:f4LDr5Voq0i2e/R5DDNOoa2zzDfwtkZa6DnEwAbqwq4=
 github.com/peterhellberg/ruuvitag v0.1.0 h1:wAPf68X3fsB0xm7pJJgE5TaXzY9DhHKg0zI9t5eav9c=
 github.com/peterhellberg/ruuvitag v0.1.0/go.mod h1:fY7K8e1sq2DQKFBpa6cQ6E9IwhJFwDQevoALJP9RCCw=

@@ -1,5 +1,6 @@
 .env.h
 .DS_Store
+.env
 
 .pio
 .vscode/.browse.c_cpp.db*

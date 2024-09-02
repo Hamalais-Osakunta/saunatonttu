@@ -50,10 +50,11 @@ void loop()
     delay(SCAN_TIME * 1000);
     BLEDevice::getScan()->stop(); //  not needed
     esp_bt_controller_disable();  // Disable the Bluetooth controller (optional, if necessary)
-
+    
     if (receivedAdvertisement.empty())
     {
         Serial.println("Target device not found");
+        BLEDevice::deinit(false);
     }
     else
     {
@@ -83,7 +84,7 @@ void loop()
 
             // 4. Send data to server
 
-            http.begin(API_URL);
+            http.begin((std::string(API_URL) + "/api/receive-bt").c_str());
             http.addHeader("Content-Type", "application/octet-stream");
             httpResponseCode = http.POST((uint8_t *)receivedAdvertisement.c_str(), receivedAdvertisement.length());
 

@@ -1,4 +1,4 @@
-FROM docker.io/_/golang:latest
+FROM docker.io/golang:latest
 RUN echo > /empty
 COPY go.mod go.sum ./
 RUN go mod download

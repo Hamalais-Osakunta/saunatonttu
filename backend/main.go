@@ -10,9 +10,9 @@ import (
 	"os/signal"
 	"strconv"
 
+	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"
 	"github.com/peterhellberg/ruuvitag"
-	"github.com/go-telegram/bot"
 )
 
 var saunaKiuas Kiuas
@@ -59,8 +59,7 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 
 		ruuviTag, err := ruuvitag.ParseRAWv2(body)
 		if err != nil {
-			fmt.Println("Failed to parse RuuviTag data:", err)
-			return
+			fmt.Println("Failed to parse RuuviTag data. are all the sensors enabled?", err)
 		}
 
 		saunaKiuas.Temperature = ruuviTag.Temperature

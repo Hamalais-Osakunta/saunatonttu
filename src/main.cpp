@@ -25,9 +25,12 @@ class MyAdvertisedDeviceCallbacks : public BLEAdvertisedDeviceCallbacks
     }
 };
 
+MyAdvertisedDeviceCallbacks* callbacks;
+
 void setup()
 {
     Serial.begin(9600);
+    callbacks = new MyAdvertisedDeviceCallbacks();
 }
 
 void loop()
@@ -39,7 +42,7 @@ void loop()
 
     BLEDevice::init("");
     pBLEScan = BLEDevice::getScan();
-    pBLEScan->setAdvertisedDeviceCallbacks(new MyAdvertisedDeviceCallbacks());
+    pBLEScan->setAdvertisedDeviceCallbacks(callbacks);
     pBLEScan->setActiveScan(true);
     pBLEScan->setInterval(100);
     pBLEScan->setWindow(99);
@@ -50,7 +53,7 @@ void loop()
     delay(SCAN_TIME * 1000);
     BLEDevice::getScan()->stop(); //  not needed
     esp_bt_controller_disable();  // Disable the Bluetooth controller (optional, if necessary)
-    
+
     if (receivedAdvertisement.empty())
     {
         Serial.println("Target device not found");
@@ -125,4 +128,8 @@ void loop()
 
     // Clear the received advertisement for the next cycle
     receivedAdvertisement.clear();
+
+    if (ESP.getFreeHeap() < 16384) {
+        ESP.restart();
+    }
 }

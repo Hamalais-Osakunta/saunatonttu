@@ -5,7 +5,7 @@ on:
     paths:
       - data-collection/**
 
-  pull-request:
+  pull_request:
     types: [opened, reopened]
 
 

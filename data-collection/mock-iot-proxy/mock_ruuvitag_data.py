@@ -60,7 +60,7 @@ def generate_mock_ruuvitag_data(
     if tx_power is None:
         tx_power = random.choice([-40, -38, -36, -34, -32, -30, -28, -26, -24, -22, -20, -18, -16, -14, -12, -10, -8, -6, -4, -2, 0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20])
     
-    encoded_battery_voltage = int((battery_voltage - 1.6) * 1000)  # Convert voltage above 1.6V to millivolts
+    encoded_battery_voltage = int(battery_voltage * 1000 - 1600)  # Align voltage encoding
     encoded_tx_power = (tx_power + 40) // 2  # Convert TX power from dBm to the encoded 5-bit value
     power_info = (encoded_battery_voltage << 5) | encoded_tx_power
     

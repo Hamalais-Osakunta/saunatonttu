@@ -1,64 +1,82 @@
 import unittest
 from unittest.mock import MagicMock, patch
+
 from fastapi.testclient import TestClient
-from data_ingestion import app, push_data_to_redis, decode_ruuvitag_bytestream
-import redis
-from ruuvitag_sensor.decoder import UrlDecoder
-import random
-import os
+from ruuvitag_insert import app, decode_ruuvitag_bytestream, push_data_to_redis
 
 # TestClient is used to simulate requests to the FastAPI app
 client = TestClient(app)
 
-# Mock function to simulate Ruuvitag binary data
-def generate_mock_ruuvitag_bytestream():
-    """
-    Generate mock Ruuvitag bytestream to simulate incoming sensor data.
-    """
-    # Simulate random sensor values
-    temperature = round(random.uniform(-10, 40), 2)
-    humidity = round(random.uniform(0, 100), 2)
-    battery = round(random.uniform(2.5, 3.7), 2)
-    
-    # Mock MAC address
-    mac = "AA:BB:CC:DD:EE:FF"
-    
-    # Return data as hex-encoded string, simulating a Ruuvitag bytestream
-    mock_data = f"990403{int(temperature * 100):04x}{int(humidity * 100):04x}{int(battery * 1000):04x}"
-    return bytes.fromhex(mock_data)
 
-class TestIngestEndpoint(unittest.TestCase):
+class TestDecodeRuuvitagBytestream(unittest.TestCase):
 
-    @patch('data_ingestion.r')  # Mock Redis connection in the main module
-    def test_ingest_data(self, mock_redis):
-        # Mock Redis rpush function to avoid real Redis interaction
-        mock_redis.rpush = MagicMock()
-        
-        # Generate mock Ruuvitag bytestream
-        bytestream = generate_mock_ruuvitag_bytestream()
-        
-        # Send POST request to /ingest/ endpoint with the mock bytestream
-        response = client.post("/ingest/", data=bytestream)
-        
-        # Assert that the response is successful
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["status"], "success")
-        
+    def test_decode_valid_bytestream(self):
+        # Valid bytestream for testing
+        bytestream = bytes.fromhex(
+            "99040512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F")
+
+        # Expected decoded data
+        expected_data = {'acceleration': 1036.015443900331,
+                         'acceleration_x': 4,
+                         'acceleration_y': -4,
+                         'acceleration_z': 1036,
+                         'battery': 2977,
+                         'data_format': 5,
+                         'humidity': 53.49,
+                         'mac': 'cbb8334c884f',
+                         'measurement_sequence_number': 205,
+                         'movement_counter': 66,
+                         'pressure': 1000.44,
+                         'rssi': None,
+                         'temperature': 24.3,
+                         'tx_power': 4}
+
+        # Call the function
+        decoded_data = decode_ruuvitag_bytestream(bytestream)
+
+        # Assert the decoded data matches expected data
+        self.assertEqual(decoded_data, expected_data)
+
+    def test_decode_invalid_bytestream(self):
+        # Invalid bytestream (wrong manufacturer ID)
+        bytestream = bytes.fromhex(
+            "12340512FC5394C37C0004FFFC040CAC364200CDCBB8334C884F")
+
+        # Call the function and assert it raises a ValueError
+        with self.assertRaises(ValueError):
+            decode_ruuvitag_bytestream(bytestream)
+
+
+class TestPushDataToRedis(unittest.TestCase):
+
+    @patch('ruuvitag_insert.r')
+    def test_push_data_to_redis(self, mock_redis):
+        # Mock data to push
+        mac = "AA:BB:CC:DD:EE:FF"
+        measurement_data = {
+            "temperature": 24.3,
+            "humidity": 53.49,
+            "battery": 2900
+        }
+
+        # Call the function
+        push_data_to_redis(mac, measurement_data)
+
         # Check if Redis rpush was called with expected arguments
         self.assertTrue(mock_redis.rpush.called)
-        
+
         # Extract the arguments with which Redis was called
         args, kwargs = mock_redis.rpush.call_args
-        
+
         # Check that the key in Redis is correct
         self.assertEqual(args[0], "ruuvi_data_queue")
-        
+
         # Ensure data string contains expected fields
-        # This is checking that the mocked data was pushed to Redis properly
-        self.assertIn("AA:BB:CC:DD:EE:FF", args[1])  # MAC Address
-        self.assertIn("temperature", args[1])
-        self.assertIn("humidity", args[1])
-        self.assertIn("battery", args[1])
+        self.assertIn(mac, args[1])
+        self.assertIn(str(measurement_data["temperature"]), args[1])
+        self.assertIn(str(measurement_data["humidity"]), args[1])
+        self.assertIn(str(measurement_data["battery"]), args[1])
+
 
 if __name__ == '__main__':
     unittest.main()

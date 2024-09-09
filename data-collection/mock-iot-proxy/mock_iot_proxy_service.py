@@ -4,7 +4,7 @@ import requests
 import os
 from mock_ruuvitag_data import generate_mock_ruuvitag_data
 
-def generate_sauna_data(is_on, prev_temperature, prev_humidity):
+def generate_sauna_data(is_on, prev_temperature, prev_humidity, target_temp):
     """
     Generates realistic sauna data, adjusting temperature and humidity based on whether the sauna is on or off.
 
@@ -12,14 +12,15 @@ def generate_sauna_data(is_on, prev_temperature, prev_humidity):
         is_on (bool): True if the sauna is on, False if the sauna is off.
         prev_temperature (float): The previous temperature to simulate gradual change.
         prev_humidity (float): The previous humidity to simulate gradual change.
+        target_temp (float): Target temperature to maintain when sauna is on.
 
     Returns:
         tuple: (new_temperature, new_humidity)
     """
     if is_on:
-        # Sauna is on: Increase temperature and humidity
-        new_temperature = min(prev_temperature + random.uniform(0.5, 2.0), 90.0)  # Max ~90°C in sauna
-        new_humidity = min(prev_humidity + random.uniform(0.1, 1.0), 40.0)  # Max ~40% humidity (depending on steam)
+        # Sauna is on: Increase temperature towards the target temperature
+        new_temperature = min(prev_temperature + random.uniform(0.5, 2.0), target_temp)
+        new_humidity = min(prev_humidity + random.uniform(0.1, 1.0), 40.0)  # Max ~40% humidity
     else:
         # Sauna is off: Gradually cool down and lower humidity
         new_temperature = max(prev_temperature - random.uniform(0.5, 1.5), 20.0)  # Min ~20°C (room temp)
@@ -43,20 +44,34 @@ def send_mock_sauna_data(interval=10):
     temperature = 20.0  # Room temperature in °C
     humidity = 20.0  # Room humidity in %
     is_sauna_on = False  # Initially, the sauna is off
-    toggle_counter = 0  # Counter to toggle the sauna state periodically
-
+    heating_duration = 0  # Track the heating duration
+    cooling_duration = 0  # Track the cooling duration
+    heating_cycle_duration = 2 * 3600  # Heating cycle lasts 2 hours (7200 seconds)
+    cooling_cycle_duration = random.randint(3600, 7200)  # Cooling cycle between 1-2 hours
+    target_temperature = 80.0  # Desired sauna temperature
+    
     while True:
         try:
-            # Toggle sauna state every 10 cycles (~100 seconds if interval is 10 seconds)
-            toggle_counter += 1
-            if toggle_counter >= 10:
-                is_sauna_on = not is_sauna_on
-                toggle_counter = 0
-                state = "on" if is_sauna_on else "off"
-                print(f"Sauna turned {state}")
+            # Determine if we need to toggle between heating and cooling
+            if is_sauna_on:
+                heating_duration += interval
+                if heating_duration >= heating_cycle_duration:
+                    # After 2 hours, turn sauna off and start cooling cycle
+                    is_sauna_on = False
+                    heating_duration = 0  # Reset the heating duration counter
+                    cooling_duration = 0  # Reset the cooling duration counter
+                    print("Sauna turned off after heating for 2 hours, starting cooldown.")
+            else:
+                cooling_duration += interval
+                if cooling_duration >= cooling_cycle_duration:
+                    # After cooldown, reheat the sauna
+                    is_sauna_on = True
+                    cooling_cycle_duration = random.randint(3600, 7200)  # Set new cooldown cycle
+                    heating_duration = 0  # Reset the heating duration counter
+                    print("Sauna turned on after cooling, starting new heating cycle.")
 
             # Generate new temperature and humidity based on whether the sauna is on or off
-            temperature, humidity = generate_sauna_data(is_sauna_on, temperature, humidity)
+            temperature, humidity = generate_sauna_data(is_sauna_on, temperature, humidity, target_temperature)
 
             # Other sensor data remains relatively constant
             battery_voltage = 3.0  # Battery voltage is constant

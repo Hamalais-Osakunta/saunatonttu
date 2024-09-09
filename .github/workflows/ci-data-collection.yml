@@ -5,7 +5,7 @@ on:
     paths:
       - data-collection/**
 
-  pull-requests:
+  pull-request:
     paths:
       - data-collection/**
 

@@ -5,9 +5,8 @@ on:
     paths:
       - data-collection/**
 
-  pull-request:
-    paths:
-      - data-collection/**
+  pull_request:
+    types: [opened, reopened]
 
 
 jobs:

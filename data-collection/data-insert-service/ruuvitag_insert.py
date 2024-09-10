@@ -36,7 +36,7 @@ def push_data_to_redis(mac, measurement_data):
     r.rpush("ruuvi_data_queue", measurement_str)
 
 # POST endpoint to receive bytestream data
-@app.post("/ingest")
+@app.post("/api/receive-bt")
 async def ingest_data(request: Request):
     try:
         # Read the raw bytestream from the POST request

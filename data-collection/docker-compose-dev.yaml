@@ -1,44 +1,19 @@
 services:
-  
-  #Data insert service
-  data-insert:
-    build: ./data-insert-service
-    depends_on:
-      - redis
-    networks:
-      - monitoring
-    restart: always
-    ports:
-      - "8000:8000"  # Expose backend on port 8000
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
 
   # Data ingestion service
   data-ingestion:
     build: ./data-ingest-service
     depends_on:
-      - redis
+      - timescaledb
     networks:
       - monitoring
     restart: always
     environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
       - DB_HOST=timescaledb
       - DB_PORT=5432
       - DB_NAME=${DB_NAME}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
-
-  # Redis Queue
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
-    networks:
-      - monitoring
-    restart: always
 
   # TimescaleDB (PostgreSQL-based time-series DB)
   timescaledb:
@@ -75,7 +50,7 @@ services:
     networks:
       - monitoring
     environment:
-      INGEST_URL: "http://data-insert:8000"
+      INGEST_URL: "http://data-ingestion:8000"
     restart: always
 
 networks:

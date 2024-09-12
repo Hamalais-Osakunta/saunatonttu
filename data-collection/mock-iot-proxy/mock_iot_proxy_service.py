@@ -38,7 +38,7 @@ def send_mock_sauna_data(interval=10):
     """
     
     # Get the URL from environment variable or use default
-    url = os.getenv("INGEST_URL", "http://localhost") + "/ingest/"
+    url = os.getenv("INGEST_URL", "http://localhost") + "/api/receive-bt"
 
     # Initial conditions
     temperature = 20.0  # Room temperature in °C

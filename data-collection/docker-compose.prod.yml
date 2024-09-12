@@ -1,73 +1,44 @@
 services:
-  
-  #Data insert service
-  data-insert:
-    image: ghcr.io/hamalais-osakunta/saunatonttu/data-insert-service:latest
-    depends_on:
-      - redis
-    networks:
-      - monitoring
-    restart: always
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-
-  # Data ingestion service
-  data-ingestion:
-    image: ghcr.io/hamalais-osakunta/saunatonttu/data-ingest-service:latest
-    depends_on:
-      - redis
-    networks:
-      - monitoring
-    restart: always
-    environment:
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - DB_HOST=timescaledb
-      - DB_PORT=5432
-      - DB_NAME=${DB_NAME}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-
-  # Redis Queue
-  redis:
-    image: redis:latest
-    networks:
-      - monitoring
-    restart: always
-
-  # TimescaleDB (PostgreSQL-based time-series DB)
-  timescaledb:
-    image: timescale/timescaledb:latest-pg14
-    environment:
-      POSTGRES_USER: ${DB_USER}
-      POSTGRES_PASSWORD: ${DB_PASSWORD}
-      POSTGRES_DB: ${DB_NAME}
-    volumes:
-      - timescaledb_data:/var/lib/postgresql/data
-    networks:
-      - monitoring
-    restart: always
-
-  # Grafana service
-  grafana:
-    image: grafana/grafana
-    ports:
-      - "3000:3000"
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - grafana_data:/var/lib/grafana
+  data-ingest-service:
+    image: 'ghcr.io/hamalais-osakunta/saunatonttu/data-ingest-service:latest'
     depends_on:
       - timescaledb
     networks:
       - monitoring
     restart: always
+    environment:
+      - DB_HOST=timescaledb
+      - DB_PORT=5432
+      - 'DB_NAME=${DB_NAME}'
+      - 'DB_USER=${DB_USER}'
+      - 'DB_PASSWORD=${DB_PASSWORD}'
 
+  timescaledb:
+    image: 'timescale/timescaledb:latest-pg14'
+    environment:
+      POSTGRES_USER: '${DB_USER}'
+      POSTGRES_PASSWORD: '${DB_PASSWORD}'
+      POSTGRES_DB: '${DB_NAME}'
+    volumes:
+      - 'timescaledb_data:/var/lib/postgresql/data'
+    networks:
+      - monitoring
+    restart: always
+  grafana:
+    image: grafana/grafana
+    ports:
+      - '3000:3000'
+    environment:
+      - 'GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}'
+    volumes:
+      - 'grafana_data:/var/lib/grafana'
+    depends_on:
+      - timescaledb
+    networks:
+      - monitoring
+    restart: always
 networks:
   monitoring:
-    driver: bridge
-
 volumes:
-  timescaledb_data:
-  grafana_data:
+  timescaledb_data: null
+  grafana_data: null

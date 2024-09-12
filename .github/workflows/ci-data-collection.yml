@@ -40,12 +40,5 @@ jobs:
         push: true
         tags: ghcr.io/${{ env.REPO }}/data-ingest-service:latest
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v6
-      with:
-        context: ./data-collection/data-insert-service
-        push: true
-        tags: ghcr.io/${{ env.REPO }}/data-insert-service:latest
-
     - name: Logout from GitHub Container Registry
       run: docker logout ghcr.io

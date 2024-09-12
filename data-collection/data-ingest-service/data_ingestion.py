@@ -1,13 +1,10 @@
-import redis
 import psycopg2
-import time
 import os
+from fastapi import FastAPI, Request
+from ruuvitag_sensor.decoder import get_decoder
+from datetime import datetime
 
-# Function to create Redis connection
-def create_redis_connection():
-    redis_host = os.getenv("REDIS_HOST", "redis")
-    redis_port = int(os.getenv("REDIS_PORT", 6379))
-    return redis.StrictRedis(host=redis_host, port=redis_port, decode_responses=True)
+app = FastAPI()
 
 # Function to create TimescaleDB connection
 def create_timescale_connection():
@@ -22,7 +19,7 @@ def create_timescale_connection():
         password=db_password,
         host=db_host
     )
-    #check if the connection is successful
+    # Check if the connection is successful
     if conn:
         print("Connection Successful")
     else:
@@ -43,44 +40,59 @@ def ensure_table_exists(cursor):
     """)
     cursor.connection.commit()
 
-# Function to ingest data from Redis and store in TimescaleDB
-def ingest_data(redis_conn, db_conn, max_iterations=None):
-    print("Starting data ingestion...")
-    cursor = db_conn.cursor()
-    iterations = 0
-    while True:
-        # Blocking pop from Redis queue
-        data = redis_conn.blpop("ruuvi_data_queue", timeout=10)
-        if data:
-            measurement = data[1].split(",")
-            sensor_mac = measurement[0]
-            temperature = float(measurement[1])
-            humidity = float(measurement[2])
-            battery = float(measurement[3])
-            timestamp = measurement[4]
+# Function to decode the bytestream (Ruuvitag data)
+def decode_ruuvitag_bytestream(bytestream: bytes):
+    full_data = bytestream.hex()
+    
+    # Check manufacturer ID
+    if full_data[0:4] != "9904":
+        raise ValueError("Invalid manufacturer ID")
 
-            cursor.execute(
-                "INSERT INTO sauna_data (sensor_mac, temperature, humidity, battery, timestamp) VALUES (%s, %s, %s, %s, %s)",
-                (sensor_mac, temperature, humidity, battery, timestamp)
-            )
-            db_conn.commit()
+    sensor_data = get_decoder(5).decode_data(full_data[4:])
 
-        time.sleep(10)  # Adjust this to your needs
+    return sensor_data
 
-        if max_iterations is not None:
-            iterations += 1
-            if iterations >= max_iterations:
-                break
+# Function to insert data into TimescaleDB
+def insert_data_to_db(cursor, mac, temperature, humidity, battery, timestamp):
+    cursor.execute(
+        "INSERT INTO sauna_data (sensor_mac, temperature, humidity, battery, timestamp) VALUES (%s, %s, %s, %s, %s)",
+        (mac, temperature, humidity, battery, timestamp)
+    )
+    cursor.connection.commit()
 
-if __name__ == '__main__':
-    print("Starting data ingestion service...")
+# POST endpoint to receive bytestream data and store it in TimescaleDB
+@app.post("/api/receive-bt")
+async def ingest_data(request: Request):
+    try:
+        # Read the raw bytestream from the POST request
+        bytestream = await request.body()
+        
+        # Decode the bytestream into usable sensor data
+        decoded_data = decode_ruuvitag_bytestream(bytestream)
+        
+        print(f"Decoded data: {decoded_data}")
+        
+        # Get current timestamp
+        timestamp = datetime.now()
 
-    # Create Redis and TimescaleDB connections
-    redis_conn = create_redis_connection()
-    db_conn = create_timescale_connection()
+        # Create TimescaleDB connection
+        db_conn = create_timescale_connection()
+        cursor = db_conn.cursor()
 
-    # Ensure table exists
-    ensure_table_exists(db_conn.cursor())
-
-    # Start data ingestion
-    ingest_data(redis_conn, db_conn)
+        # Ensure the table exists
+        ensure_table_exists(cursor)
+        
+        # Insert the decoded data into the database
+        insert_data_to_db(
+            cursor, 
+            decoded_data["mac"], 
+            decoded_data["temperature"], 
+            decoded_data["humidity"], 
+            decoded_data["battery"], 
+            timestamp
+        )
+        
+        return {"status": "success", "message": "Data ingested successfully"}
+    
+    except Exception as e:
+        return {"status": "error", "message": str(e)}

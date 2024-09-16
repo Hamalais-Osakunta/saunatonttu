@@ -1,12 +1,10 @@
-name: Build and Publish Docker Image
+name: Build and Publish data-ingest Docker Image
 
 on:
   push:
     paths:
       - data-collection/**
-
-  pull_request:
-    types: [opened, reopened]
+    branches: ['main']
 
 
 jobs:

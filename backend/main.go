@@ -97,7 +97,7 @@ func checkAndNotify(b *bot.Bot, ctx context.Context) {
 			saunaKiuas.ReadyNotificationSent = true
 		}
 	} else if saunaKiuas.Temperature >= warmingThreshold {
-		if !saunaKiuas.WarmingNotificationSent {
+		if !saunaKiuas.WarmingNotificationSent && !saunaKiuas.ReadyNotificationSent {
 			SendTelegramMessage(b, ctx, "🔥 Sauna lämpiää")
 			saunaKiuas.WarmingNotificationSent = true
 		}

@@ -6,6 +6,7 @@ import (
 	"log"
 	"strconv"
 	"os"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
@@ -43,10 +44,15 @@ func InitializeTelegramBot(token string, kiuas *Kiuas) (*bot.Bot, error) {
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/info", bot.MatchTypeExact, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
 		if update.Message.Chat.ID == maintenanceChatID {
+			loc, _ := time.LoadLocation("Europe/Helsinki")
 			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: update.Message.Chat.ID,
-				Text:   fmt.Sprintf("Temperature: %.1f °C\nHumidity: %.1f%%\nBattery: %d V", kiuas.Temperature, kiuas.Humidity, kiuas.Battery),
-			})
+				Text:   fmt.Sprintf(
+					"Sauna Info:\nTemperature: %.1f °C\nHumidity: %.1f%%\nBattery: %d V\nLast Data Received: %s",
+					saunaKiuas.Temperature,
+					saunaKiuas.Humidity,
+					saunaKiuas.Battery,
+					lastDataReceived.In(loc),)})
 			if err != nil {
 				fmt.Printf("Failed to send message: %v\n", err)
 			}
@@ -56,14 +62,21 @@ func InitializeTelegramBot(token string, kiuas *Kiuas) (*bot.Bot, error) {
 	return b, nil
 }
 
-func SendTelegramMessage(b *bot.Bot, ctx context.Context, message string) {
-	chatID, err := strconv.ParseInt(os.Getenv("NOTIFICATION_CHAT_ID"), 10, 64)
-	if err != nil {
-		log.Fatalf("Error parsing NOTIFICATION_CHAT_ID: %v", err)
+func SendTelegramMessage(b *bot.Bot, ctx context.Context, message string, chatID ...int64) {
+	var targetChatID int64
+	var err error
+
+	if len(chatID) > 0 {
+		targetChatID = chatID[0]
+	} else {
+		targetChatID, err = strconv.ParseInt(os.Getenv("NOTIFICATION_CHAT_ID"), 10, 64)
+		if err != nil {
+			log.Fatalf("Error parsing NOTIFICATION_CHAT_ID: %v", err)
+		}
 	}
 
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID: chatID,
+		ChatID: targetChatID,
 		Text:   message,
 	})
 	if err != nil {

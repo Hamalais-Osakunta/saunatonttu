@@ -87,23 +87,28 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 }
 
 func monitorDataReception(b *bot.Bot, ctx context.Context) {
-    ticker := time.NewTicker(1 * time.Minute)
-    defer ticker.Stop()
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
 
-    for {
-        select {
-        case <-ticker.C:
-            if time.Since(lastDataReceived) > 10*time.Minute {
-                maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
-                if err != nil {
-                    log.Fatalf("Error parsing MAINTENANCE_CHAT_ID: %v", err)
-                }
-                SendTelegramMessage(b, ctx, "No data received for over 10 minutes", maintenanceChatID)
-            }
-        case <-ctx.Done():
-            return
-        }
-    }
+	notificationSent := false
+
+	for {
+		select {
+		case <-ticker.C:
+			if time.Since(lastDataReceived) > 10*time.Minute && !notificationSent {
+				maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
+				if err != nil {
+					log.Fatalf("Error parsing MAINTENANCE_CHAT_ID: %v", err)
+				}
+				SendTelegramMessage(b, ctx, "No data received for over 10 minutes", maintenanceChatID)
+				notificationSent = true
+			} else if time.Since(lastDataReceived) <= 10*time.Minute {
+				notificationSent = false
+			}
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 func checkAndNotify(b *bot.Bot, ctx context.Context) {

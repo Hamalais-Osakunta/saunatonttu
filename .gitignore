@@ -10,3 +10,4 @@
 backend/bt-telegram
 __pycache__
 .venv
+extensions.json

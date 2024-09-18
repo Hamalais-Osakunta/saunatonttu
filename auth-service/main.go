@@ -24,9 +24,9 @@ var (
 // Authentication handler for ForwardAuth
 func authHandler(w http.ResponseWriter, r *http.Request) {
 	// Extract the original request URI (optional, for logging)
-	originalURI := r.Header.Get("X-Original-URI")
+	originalURI := r.Header.Get("X-Forwarded-Uri")
 	if originalURI == "" {
-		log.Printf("Bad Request: Missing X-Original-URI header")
+		log.Printf("Bad Request: Missing X-Forwarded-Uri header")
 	}
 	log.Printf("Authenticating request for %s", originalURI)
 

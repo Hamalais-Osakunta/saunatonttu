@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/joho/godotenv"
@@ -16,6 +17,7 @@ import (
 )
 
 var saunaKiuas Kiuas
+var lastDataReceived time.Time
 
 func main() {
 	err := godotenv.Load()
@@ -38,6 +40,8 @@ func main() {
 	go b.Start(ctx)
 
 	go startHTTPServer(b, ctx)
+
+	go monitorDataReception(b, ctx)
 
 	<-ctx.Done()
 	fmt.Println("Shutting down...")
@@ -67,6 +71,8 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 		saunaKiuas.Battery = ruuviTag.Battery
 		fmt.Printf("Received new temperature value: %.1f °C, Humidity: %.1f%%, Voltage: %d V\n", saunaKiuas.Temperature, saunaKiuas.Humidity, saunaKiuas.Battery)
 
+		lastDataReceived = time.Now()
+
 		checkAndNotify(b, ctx)
 	})
 
@@ -78,6 +84,26 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 	if err := http.ListenAndServe(":"+port, nil); err != nil {
 		log.Fatalf("Failed to start HTTP server: %v", err)
 	}
+}
+
+func monitorDataReception(b *bot.Bot, ctx context.Context) {
+    ticker := time.NewTicker(1 * time.Minute)
+    defer ticker.Stop()
+
+    for {
+        select {
+        case <-ticker.C:
+            if time.Since(lastDataReceived) > 10*time.Minute {
+                maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
+                if err != nil {
+                    log.Fatalf("Error parsing MAINTENANCE_CHAT_ID: %v", err)
+                }
+                SendTelegramMessage(b, ctx, "No data received for over 10 minutes", maintenanceChatID)
+            }
+        case <-ctx.Done():
+            return
+        }
+    }
 }
 
 func checkAndNotify(b *bot.Bot, ctx context.Context) {
@@ -97,7 +123,7 @@ func checkAndNotify(b *bot.Bot, ctx context.Context) {
 			saunaKiuas.ReadyNotificationSent = true
 		}
 	} else if saunaKiuas.Temperature >= warmingThreshold {
-		if !saunaKiuas.WarmingNotificationSent {
+		if !saunaKiuas.WarmingNotificationSent && !saunaKiuas.ReadyNotificationSent {
 			SendTelegramMessage(b, ctx, "🔥 Sauna lämpiää")
 			saunaKiuas.WarmingNotificationSent = true
 		}

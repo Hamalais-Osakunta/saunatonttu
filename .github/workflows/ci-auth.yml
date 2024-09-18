@@ -1,9 +1,9 @@
-name: Build and Publish Backend Docker Image
+name: Build and Publish Auth Service Docker Image
 
 on:
   push:
     paths:
-      - backend/**
+      - auth-service/**
     branches: ['main']
 
 
@@ -34,9 +34,9 @@ jobs:
     - name: Build and push Docker image
       uses: docker/build-push-action@v6
       with:
-        context: ./backend
+        context: ./auth-service
         push: true
-        tags: ghcr.io/${{ env.REPO }}/backend:latest
+        tags: ghcr.io/${{ env.REPO }}/auth-service:latest
 
     - name: Logout from GitHub Container Registry
       run: docker logout ghcr.io

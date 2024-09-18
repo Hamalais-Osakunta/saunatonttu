@@ -27,8 +27,6 @@ func authHandler(w http.ResponseWriter, r *http.Request) {
 	originalURI := r.Header.Get("X-Original-URI")
 	if originalURI == "" {
 		log.Printf("Bad Request: Missing X-Original-URI header")
-		http.Error(w, "Bad Request: Missing X-Original-URI header", http.StatusBadRequest)
-		return
 	}
 	log.Printf("Authenticating request for %s", originalURI)
 

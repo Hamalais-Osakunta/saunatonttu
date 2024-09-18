@@ -1,0 +1,5 @@
+#define API_URL "hostname"
+#define WIFI_SSID "ssid"
+#define WIFI_PASSWORD "password"
+#define RUUVI_TAG_MAC "AA:BB:CC:DD:EE:FF"
+#define API_KEY "xxx"

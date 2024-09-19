@@ -37,15 +37,18 @@ func InitializeTelegramBot(ctx context.Context , token string, kiuas *Kiuas) (*b
 
 	b.RegisterHandler(bot.HandlerTypeMessageText, "/info", bot.MatchTypePrefix, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
 		if update.Message.Chat.ID == maintenanceChatID {
-			loc, _ := time.LoadLocation("Europe/Bucharest")
-			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
+			loc, err := time.LoadLocation("Europe/Bucharest")
+			if err != nil {
+				fmt.Printf("Error loading location: %v", err)
+			}
+			_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: update.Message.Chat.ID,
 				Text: fmt.Sprintf(
 					"Sauna Info:\nTemperature: %.1f °C\nHumidity: %.1f%%\nBattery: %d V\nLast Data Received: %s",
 					saunaKiuas.Temperature,
 					saunaKiuas.Humidity,
 					saunaKiuas.Battery,
-					lastDataReceived.In(loc))})
+					saunaKiuas.lastDataReceived.In(loc))})
 			if err != nil {
 				fmt.Printf("Failed to send message: %v\n", err)
 			}

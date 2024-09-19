@@ -4,35 +4,28 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"strconv"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/go-telegram/bot"
 	"github.com/go-telegram/bot/models"
 )
 
-func InitializeTelegramBot(token string, kiuas *Kiuas) (*bot.Bot, error) {
+func InitializeTelegramBot(ctx context.Context , token string, kiuas *Kiuas) (*bot.Bot, error) {
 	maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
 	if err != nil {
 		log.Fatalf("Error parsing MAINTENANCE_CHAT_ID: %v", err)
 	}
 
-	opts := []bot.Option{
-		bot.WithDefaultHandler(func(ctx context.Context, b *bot.Bot, update *models.Update) {
-			b.SendMessage(ctx, &bot.SendMessageParams{
-				ChatID: update.Message.Chat.ID,
-				Text:   update.Message.Text,
-			})
-		}),
-	}
+	opts := []bot.Option{}
 
 	b, err := bot.New(token, opts...)
 	if err != nil {
 		return nil, err
 	}
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/kiuas", bot.MatchTypeExact, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/kiuas", bot.MatchTypePrefix, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
 		_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
 			Text:   fmt.Sprintf("Sauna on %s\nLämpötila: %.1f °C\nKosteus: %.1f%%", GetSaunaStatus(kiuas.IsOn()), kiuas.Temperature, kiuas.Humidity),
@@ -42,24 +35,34 @@ func InitializeTelegramBot(token string, kiuas *Kiuas) (*bot.Bot, error) {
 		}
 	})
 
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/info", bot.MatchTypeExact, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/info", bot.MatchTypePrefix, func(ctx context.Context, _ *bot.Bot, update *models.Update) {
 		if update.Message.Chat.ID == maintenanceChatID {
-			loc, _ := time.LoadLocation("Europe/Helsinki")
+			loc, _ := time.LoadLocation("Europe/Bucharest")
 			_, err := b.SendMessage(ctx, &bot.SendMessageParams{
 				ChatID: update.Message.Chat.ID,
-				Text:   fmt.Sprintf(
+				Text: fmt.Sprintf(
 					"Sauna Info:\nTemperature: %.1f °C\nHumidity: %.1f%%\nBattery: %d V\nLast Data Received: %s",
 					saunaKiuas.Temperature,
 					saunaKiuas.Humidity,
 					saunaKiuas.Battery,
-					lastDataReceived.In(loc),)})
+					lastDataReceived.In(loc))})
 			if err != nil {
 				fmt.Printf("Failed to send message: %v\n", err)
 			}
 		}
 	})
 
+	b.SetMyCommands(ctx, &bot.SetMyCommandsParams{
+		Commands: []models.BotCommand{
+			{
+				Command:     "kiuas",
+				Description: "Näytä saunan tila",
+			},
+		},
+	})
+
 	return b, nil
+
 }
 
 func SendTelegramMessage(b *bot.Bot, ctx context.Context, message string, chatID ...int64) {

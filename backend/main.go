@@ -32,7 +32,7 @@ func main() {
 	if botToken == "" {
 		log.Fatalf("TELEGRAM_BOT_TOKEN is not set in the environment")
 	}
-	b, err := InitializeTelegramBot(botToken, &saunaKiuas)
+	b, err := InitializeTelegramBot(ctx, botToken, &saunaKiuas)
 	if err != nil {
 		log.Fatalf("Failed to initialize Telegram bot: %v", err)
 	}
@@ -95,14 +95,14 @@ func monitorDataReception(b *bot.Bot, ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			if time.Since(lastDataReceived) > 10*time.Minute && !notificationSent {
+			if time.Since(lastDataReceived) > time.Hour && !notificationSent {
 				maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
 				if err != nil {
 					log.Fatalf("Error parsing MAINTENANCE_CHAT_ID: %v", err)
 				}
-				SendTelegramMessage(b, ctx, "No data received for over 10 minutes", maintenanceChatID)
+				SendTelegramMessage(b, ctx, "No data received for over 1 hour", maintenanceChatID)
 				notificationSent = true
-			} else if time.Since(lastDataReceived) <= 10*time.Minute {
+			} else if time.Since(lastDataReceived) <= time.Hour {
 				notificationSent = false
 			}
 		case <-ctx.Done():

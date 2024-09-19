@@ -17,7 +17,6 @@ import (
 )
 
 var saunaKiuas Kiuas
-var lastDataReceived time.Time
 
 func main() {
 	err := godotenv.Load()
@@ -71,7 +70,7 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 		saunaKiuas.Battery = ruuviTag.Battery
 		fmt.Printf("Received new temperature value: %.1f °C, Humidity: %.1f%%, Voltage: %d V\n", saunaKiuas.Temperature, saunaKiuas.Humidity, saunaKiuas.Battery)
 
-		lastDataReceived = time.Now()
+		saunaKiuas.lastDataReceived = time.Now()
 
 		checkAndNotify(b, ctx)
 	})
@@ -95,14 +94,14 @@ func monitorDataReception(b *bot.Bot, ctx context.Context) {
 	for {
 		select {
 		case <-ticker.C:
-			if time.Since(lastDataReceived) > time.Hour && !notificationSent {
+			if time.Since(saunaKiuas.lastDataReceived) > time.Hour && !notificationSent {
 				maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
 				if err != nil {
 					log.Fatalf("Error parsing MAINTENANCE_CHAT_ID: %v", err)
 				}
 				SendTelegramMessage(b, ctx, "No data received for over 1 hour", maintenanceChatID)
 				notificationSent = true
-			} else if time.Since(lastDataReceived) <= time.Hour {
+			} else if time.Since(saunaKiuas.lastDataReceived) <= time.Hour {
 				notificationSent = false
 			}
 		case <-ctx.Done():

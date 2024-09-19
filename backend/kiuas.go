@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 )
 
 type Kiuas struct {
@@ -12,6 +13,7 @@ type Kiuas struct {
 	Battery              uint16
 	WarmingNotificationSent bool
 	ReadyNotificationSent    bool
+	lastDataReceived	 time.Time
 }
 
 func (k *Kiuas) IsOn() bool {

@@ -12,6 +12,8 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
+import _ "time/tzdata"
+
 func InitializeTelegramBot(ctx context.Context , token string, kiuas *Kiuas) (*bot.Bot, error) {
 	maintenanceChatID, err := strconv.ParseInt(os.Getenv("MAINTENANCE_CHAT_ID"), 10, 64)
 	if err != nil {

@@ -86,6 +86,7 @@ func SendTelegramMessage(b *bot.Bot, ctx context.Context, message string, chatID
 	_, err = b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: targetChatID,
 		Text:   message,
+		ParseMode: "MarkdownV2",
 	})
 	if err != nil {
 		fmt.Printf("Failed to send message: %v\n", err)

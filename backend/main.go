@@ -148,12 +148,12 @@ func checkAndNotify(b *bot.Bot, ctx context.Context) {
 	// Ready notification check
 	if saunaKiuas.Temperature >= readyThreshold {
 		if !saunaKiuas.ReadyNotificationSent {
-			SendTelegramMessage(b, ctx, fmt.Sprintf("*Sauna valmis\!*🔥\nLämpötila: %.1f °C 🌡️", saunaKiuas.Temperature))
+			SendTelegramMessage(b, ctx, fmt.Sprintf("*Sauna valmis\\!*🔥\nLämpötila: %.1f °C 🌡️", saunaKiuas.Temperature))
 			saunaKiuas.ReadyNotificationSent = true
 		}
 	} else if !saunaKiuas.WarmingNotificationSent && !saunaKiuas.ReadyNotificationSent {
 			if tempChangeRate >= lowerBound {
-				SendTelegramMessage(b, ctx, "🔥*Sauna lämpiää\!*🔥")
+				SendTelegramMessage(b, ctx, "🔥*Sauna lämpiää\\!*🔥")
 				saunaKiuas.WarmingNotificationSent = true
 			}
 	} else {

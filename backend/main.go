@@ -122,11 +122,17 @@ func checkAndNotify(b *bot.Bot, ctx context.Context) {
 		log.Fatalf("Error parsing SAUNA_READY_THRESHOLD: %v", err)
 	}
 
+	// Ensure there are at least three valid records
+	if saunaKiuas.TemperatureRecords[0] == 0 {
+		log.Println("Not enough valid timestamp records")
+		return
+	}
+
 	// Calculate the time difference and average temperature change over the last three records
 	timeDiff := saunaKiuas.TimestampRecords[2].Sub(saunaKiuas.TimestampRecords[0]).Seconds()
 	if timeDiff == 0 {
 		// Avoid division by zero if the timestamps are identical (unlikely but possible)
-		timeDiff = 1
+		return
 	}
 
 	// Calculate the temperature change over the three records
@@ -142,12 +148,12 @@ func checkAndNotify(b *bot.Bot, ctx context.Context) {
 	// Ready notification check
 	if saunaKiuas.Temperature >= readyThreshold {
 		if !saunaKiuas.ReadyNotificationSent {
-			SendTelegramMessage(b, ctx, fmt.Sprintf("*Sauna valmis!*🔥\nLämpötila: %.1f °C 🌡️", saunaKiuas.Temperature))
+			SendTelegramMessage(b, ctx, fmt.Sprintf("*Sauna valmis\!*🔥\nLämpötila: %.1f °C 🌡️", saunaKiuas.Temperature))
 			saunaKiuas.ReadyNotificationSent = true
 		}
 	} else if !saunaKiuas.WarmingNotificationSent && !saunaKiuas.ReadyNotificationSent {
 			if tempChangeRate >= lowerBound {
-				SendTelegramMessage(b, ctx, "🔥*Sauna lämpiää!*🔥")
+				SendTelegramMessage(b, ctx, "🔥*Sauna lämpiää\!*🔥")
 				saunaKiuas.WarmingNotificationSent = true
 			}
 	} else {

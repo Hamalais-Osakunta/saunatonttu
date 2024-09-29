@@ -16,7 +16,10 @@ import (
 	"github.com/peterhellberg/ruuvitag"
 )
 
-var saunaKiuas Kiuas
+var saunaKiuas  = Kiuas{
+	TemperatureRecords:  [3]float64{0.0, 0.0, 0.0},
+	TimestampRecords:    [3]time.Time{time.Now(), time.Now(), time.Now()},
+}
 
 func main() {
 	err := godotenv.Load()
@@ -71,6 +74,8 @@ func startHTTPServer(b *bot.Bot, ctx context.Context) {
 		fmt.Printf("Received new temperature value: %.1f °C, Humidity: %.1f%%, Voltage: %d V\n", saunaKiuas.Temperature, saunaKiuas.Humidity, saunaKiuas.Battery)
 
 		saunaKiuas.lastDataReceived = time.Now()
+		// Update the temperature records with the latest temperature and timestamp
+		saunaKiuas.AddTemperatureRecord(saunaKiuas.Temperature, time.Now())
 
 		checkAndNotify(b, ctx)
 	})
@@ -110,27 +115,41 @@ func monitorDataReception(b *bot.Bot, ctx context.Context) {
 	}
 }
 
+// Function to check temperature change and send notifications
 func checkAndNotify(b *bot.Bot, ctx context.Context) {
-	warmingThreshold, err := strconv.ParseFloat(os.Getenv("SAUNA_WARMING_THRESHOLD"), 64)
-	if err != nil {
-		log.Fatalf("Error parsing SAUNA_WARMING_THRESHOLD: %v", err)
-	}
-
 	readyThreshold, err := strconv.ParseFloat(os.Getenv("SAUNA_READY_THRESHOLD"), 64)
 	if err != nil {
 		log.Fatalf("Error parsing SAUNA_READY_THRESHOLD: %v", err)
 	}
 
+	// Calculate the time difference and average temperature change over the last three records
+	timeDiff := saunaKiuas.TimestampRecords[2].Sub(saunaKiuas.TimestampRecords[0]).Seconds()
+	if timeDiff == 0 {
+		// Avoid division by zero if the timestamps are identical (unlikely but possible)
+		timeDiff = 1
+	}
+
+	// Calculate the temperature change over the three records
+	tempChange := saunaKiuas.TemperatureRecords[2] - saunaKiuas.TemperatureRecords[0]
+	tempChangeRate := tempChange / timeDiff
+
+	// Threshold for change rate considered as sauna warming up
+	changeThreshold := 0.0123 // avg temperature change / second
+
+	// Introduce lower bound for the change rate to catch the case where the temperature is rising slowly
+	lowerBound := changeThreshold * 0.9
+
+	// Ready notification check
 	if saunaKiuas.Temperature >= readyThreshold {
 		if !saunaKiuas.ReadyNotificationSent {
-			SendTelegramMessage(b, ctx, fmt.Sprintf("Sauna valmis!\nLämpötila: %.1f °C", saunaKiuas.Temperature))
+			SendTelegramMessage(b, ctx, fmt.Sprintf("*Sauna valmis!*🔥\nLämpötila: %.1f °C 🌡️", saunaKiuas.Temperature))
 			saunaKiuas.ReadyNotificationSent = true
 		}
-	} else if saunaKiuas.Temperature >= warmingThreshold {
-		if !saunaKiuas.WarmingNotificationSent && !saunaKiuas.ReadyNotificationSent {
-			SendTelegramMessage(b, ctx, "🔥 Sauna lämpiää")
-			saunaKiuas.WarmingNotificationSent = true
-		}
+	} else if !saunaKiuas.WarmingNotificationSent && !saunaKiuas.ReadyNotificationSent {
+			if tempChangeRate >= lowerBound {
+				SendTelegramMessage(b, ctx, "🔥*Sauna lämpiää!*🔥")
+				saunaKiuas.WarmingNotificationSent = true
+			}
 	} else {
 		// Reset notifications if temperature drops below warming threshold
 		saunaKiuas.ResetNotifications()

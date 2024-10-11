@@ -263,7 +263,6 @@ func handleReceiveBT(w http.ResponseWriter, r *http.Request, b TelegramBot, ctx 
 	ruuviTag, err := ruuvitag.ParseRAWv2(body)
 	if err != nil {
 		fmt.Println("Failed to parse RuuviTag data. Are all the sensors enabled?", err)
-		return
 	}
 
 	kiuas.Temperature = ruuviTag.Temperature

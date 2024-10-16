@@ -273,7 +273,7 @@ func handleReceiveBT(w http.ResponseWriter, r *http.Request, b TelegramBot, ctx 
 	kiuas.LastDataReceived = time.Now()
 	kiuas.AddTemperatureRecord(kiuas.Temperature, time.Now())
 
-	checkAndNotify(b, ctx, kiuas, config)
+	checkAndNotify(b, ctx, kiuas, config, time.Now())
 }
 
 func monitorDataReception(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Config) {
@@ -298,10 +298,10 @@ func monitorDataReception(b TelegramBot, ctx context.Context, kiuas *Kiuas, conf
 }
 
 // Function to check temperature change and send notifications
-func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Config) {
+func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Config, currentTime time.Time) {
     // Ensure there are at least three valid records
     if kiuas.TemperatureRecords[0] == 0 {
-        log.Println("Not enough valid timestamp records")
+        log.Println("Not enough valid temperature records")
         return
     }
 
@@ -314,7 +314,7 @@ func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Co
 
     // Calculate the temperature change over the three records
     tempChange := kiuas.TemperatureRecords[2] - kiuas.TemperatureRecords[0]
-    tempChangeRate := tempChange / timeDiff
+    tempChangeRate := tempChange / timeDiff // degrees per second
 
     // Ready notification check
     if kiuas.Temperature >= config.ReadyThreshold {
@@ -323,15 +323,23 @@ func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Co
             kiuas.ReadyNotificationSent = true
         }
     } else if !kiuas.WarmingNotificationSent && !kiuas.ReadyNotificationSent {
-        if tempChangeRate >= config.LowerBound {
-            SendTelegramMessage(b, ctx, config, "🔥*Sauna lämpiää\\!*🔥")
+        if tempChangeRate > 0 && tempChangeRate >= config.LowerBound {
+            // Calculate the estimated time until the sauna is ready
+            tempRemaining := config.ReadyThreshold - kiuas.Temperature
+            timeToReadySeconds := tempRemaining / tempChangeRate
+            estimatedReadyTime := currentTime.Add(time.Duration(timeToReadySeconds) * time.Second)
+
+            // Format the estimated ready time
+            estimatedReadyTimeStr := estimatedReadyTime.Format("15:04")
+
+            SendTelegramMessage(b, ctx, config, fmt.Sprintf("🔥*Sauna lämpiää\\!*🔥\nValmis klo %s", estimatedReadyTimeStr))
             kiuas.WarmingNotificationSent = true
         }
     }
 
     // Reset notifications if temperature has cooled down
     if kiuas.Temperature < config.ResetThreshold {
-        if kiuas.WarmingNotificationSent || kiuas.ReadyNotificationSent {
+        if kiuas.WarmingNotificationSent && kiuas.ReadyNotificationSent {
             kiuas.ResetNotifications()
         }
     }

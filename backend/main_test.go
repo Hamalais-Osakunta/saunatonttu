@@ -77,7 +77,7 @@ func TestCheckAndNotify_SaunaReady(t *testing.T) {
 	if len(mockBot.SentMessages) != 1 {
 		t.Fatalf("Expected 1 message to be sent, got %d", len(mockBot.SentMessages))
 	}
-	expectedMessage := fmt.Sprintf("*Sauna valmis!*🔥\nLämpötila: %.1f °C 🌡️", kiuas.Temperature)
+	expectedMessage := fmt.Sprintf("*Sauna valmis\\!*🔥\nLämpötila: %.1f °C 🌡️", kiuas.Temperature)
 	// replace . wthi \. to escape the dot
 	expectedMessage = strings.Replace(expectedMessage, ".", "\\.", -1)
 	if mockBot.SentMessages[0] != expectedMessage {
@@ -128,7 +128,7 @@ func TestCheckAndNotify_SaunaWarming(t *testing.T) {
 	estimatedReadyTime := currentTime.Add(time.Duration(timeToReadySeconds) * time.Second)
 	estimatedReadyTimeStr := estimatedReadyTime.Format("15:04")
 
-	expectedMessage := fmt.Sprintf("🔥*Sauna lämpiää!*🔥\nValmis klo %s", estimatedReadyTimeStr)
+	expectedMessage := fmt.Sprintf("🔥*Sauna lämpiää\\!*🔥\nValmis klo %s", estimatedReadyTimeStr)
 	if mockBot.SentMessages[0] != expectedMessage {
 		t.Errorf("Expected message: %s, got: %s", expectedMessage, mockBot.SentMessages[0])
 	}

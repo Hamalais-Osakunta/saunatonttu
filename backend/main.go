@@ -201,11 +201,7 @@ func InitializeTelegramBot(ctx context.Context, token string, kiuas *Kiuas, conf
 
 func FmtTelegram(input string) string {
 	return strings.NewReplacer(
-	  "(", "\\(", // ()_-. are reserved by telegram.
-	  ")", "\\)",
-	  "_", "\\_",
 	  ".", "\\.",
-	  "-", "\\-",
 	).Replace(input)
   }
 
@@ -361,7 +357,7 @@ func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Co
 	// Ready notification check
 	if kiuas.Temperature >= config.ReadyThreshold {
 		if !kiuas.ReadyNotificationSent {
-			SendTelegramMessage(b, ctx, config, fmt.Sprintf("*Sauna valmis!*🔥\nLämpötila: %.1f °C 🌡️", kiuas.Temperature))
+			SendTelegramMessage(b, ctx, config, fmt.Sprintf("*Sauna valmis\\!*🔥\nLämpötila: %.1f °C 🌡️", kiuas.Temperature))
 			kiuas.ReadyNotificationSent = true
 		}
 	} else if !kiuas.WarmingNotificationSent && !kiuas.ReadyNotificationSent {
@@ -375,7 +371,7 @@ func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Co
 			estimatedReadyTimeStr := estimatedReadyTime.Format("15:04")
 			fmt.Printf("Estimated ready time string: %s\n", estimatedReadyTimeStr)
 
-			SendTelegramMessage(b, ctx, config, fmt.Sprintf("🔥*Sauna lämpiää!*🔥\nValmis klo %s", estimatedReadyTimeStr))
+			SendTelegramMessage(b, ctx, config, fmt.Sprintf("🔥*Sauna lämpiää\\!*🔥\nValmis klo %s", estimatedReadyTimeStr))
 			kiuas.WarmingNotificationSent = true
 		}
 	}

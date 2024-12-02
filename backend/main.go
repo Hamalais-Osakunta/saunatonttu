@@ -29,6 +29,7 @@ type Kiuas struct {
 	LastDataReceived        time.Time
 	TemperatureRecords      [3]float64
 	TimestampRecords        [3]time.Time
+	WarmingStartTime        [3]time.Time
 }
 
 func (k *Kiuas) IsOn(config *Config) bool {
@@ -362,6 +363,10 @@ func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Co
 		}
 	} else if !kiuas.WarmingNotificationSent && !kiuas.ReadyNotificationSent {
 		if kiuas.IsWarming(config) {
+			// Check if warming started, if not, initialize warming start time
+			if kiuas.WarmingStartTime.IsZero() {
+				kiuas.WarmingStartTime = currentTime
+			}
 			timeToReadySeconds := kiuas.getEstimateReadySeconds(config)
 			estimatedReadyTime := currentTime.Add(time.Duration(timeToReadySeconds) * time.Second)
 			fmt.Printf("Estimated ready time: %s\n", estimatedReadyTime)
@@ -376,10 +381,24 @@ func checkAndNotify(b TelegramBot, ctx context.Context, kiuas *Kiuas, config *Co
 		}
 	}
 
+	// Check if 2 hours have passed since warming started and temperature is below ReadyThreshold
+	// Reset notifications if temperature has cooled down
+	if !kiuas.ReadyNotificationSent && !kiuas.WarmingStartTime.IsZero() {
+		if currentTime.Sub(kiuas.WarmingStartTime) > 2*time.Hour {
+
+			SendTelegramMessage(b, ctx, config, "⚠️ *Sauna ei saavuttanut tavoitelämpötilaa kahdessa tunnissa\\!* Tarkista kiuas.")
+			// Reset notifications and warming start time
+			kiuas.ResetNotifications()
+			kiuas.WarmingStartTime = time.Time{}
+
+		}
+	}
+
 	// Reset notifications if temperature has cooled down
 	if kiuas.Temperature < config.ResetThreshold {
 		if kiuas.WarmingNotificationSent && kiuas.ReadyNotificationSent {
 			kiuas.ResetNotifications()
+			kiuas.WarmingStartTime = time.Time{} // Ensure warming start time is reset
 		}
 	}
 }

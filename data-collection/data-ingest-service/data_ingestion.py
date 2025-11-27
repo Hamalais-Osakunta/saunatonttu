@@ -86,7 +86,7 @@ async def ingest_data(request: Request):
         insert_data_to_db(
             cursor, 
             decoded_data["mac"], 
-            decoded_data["temperature"], 
+            decoded_data["temperature"],
             decoded_data["humidity"], 
             decoded_data["battery"], 
             timestamp
